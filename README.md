@@ -1,69 +1,33 @@
-# PDE Interactive Demos — Squarespace Embed Guide
+# pde-examples
 
-Three self-contained JavaScript demos, no backend required.
+Interactive browser demos exploring Green's functions and neural operators for the 1D Poisson equation. No build step, no server — pure HTML and JavaScript.
 
-| File | Description |
-|------|-------------|
-| `01_green_explorer.html` | Hover over G(x,y) heatmap; see the impulse response |
-| `02_poisson_solver.html` | Draw f(x) with mouse; u(x) updates live |
-| `03_neural_operator.html` | Trains a DeepONet in the browser (~20s); compares learned vs true kernel |
+## Demos
 
----
+| File | What it shows |
+|------|---------------|
+| `pages/01_green_explorer.html` | Interactive G(x,y) heatmap — hover to see the impulse response at any y₀ |
+| `pages/02_poisson_solver.html` | Draw f(x) with the mouse; u(x) = ∫G f dy updates in real time |
+| `pages/03_neural_operator.html` | Trains a DeepONet in the browser; compares the learned kernel to the true G |
 
-## Step 1 — Host on GitHub Pages (free, ~2 min)
+## Structure
 
-1. Create a new public GitHub repo, e.g. **`pde-demos`**
-2. Upload the three HTML files to the repo root
-3. Go to **Settings → Pages → Source → Deploy from branch → `main` → `/ (root)` → Save**
-4. Wait ~60 seconds; your pages will be live at:
-   ```
-   https://YOUR-USERNAME.github.io/pde-demos/pages/01_green_explorer.html
-   https://YOUR-USERNAME.github.io/pde-demos/pages/02_poisson_solver.html
-   https://YOUR-USERNAME.github.io/pde-demos/pages/03_neural_operator.html
-   ```
-
----
-
-## Step 2 — Embed in Squarespace
-
-In the Squarespace page editor:
-
-1. Click **+** to add a block → choose **Code**
-2. Paste the iframe snippet for whichever demo you want, substituting your GitHub username
-
-**Demo 1 — Green's Function Explorer**
-```html
-<iframe
-  src="https://YOUR-USERNAME.github.io/pde-demos/pages/01_green_explorer.html"
-  width="100%" height="480" frameborder="0" scrolling="no"
-  style="border:none;max-width:620px;display:block;margin:0 auto;">
-</iframe>
+```
+pde-examples/
+├── index.html              ← landing page (GitHub Pages root)
+├── pages/
+│   ├── 01_green_explorer.html
+│   ├── 02_poisson_solver.html
+│   └── 03_neural_operator.html
+├── README.md
+└── SQUARESPACE.md          ← iframe embed instructions
 ```
 
-**Demo 2 — Poisson Solver**
-```html
-<iframe
-  src="https://YOUR-USERNAME.github.io/pde-demos/pages/02_poisson_solver.html"
-  width="100%" height="480" frameborder="0" scrolling="no"
-  style="border:none;max-width:620px;display:block;margin:0 auto;">
-</iframe>
-```
+## Dependencies
 
-**Demo 3 — Neural Operator**
-```html
-<iframe
-  src="https://YOUR-USERNAME.github.io/pde-demos/pages/03_neural_operator.html"
-  width="100%" height="640" frameborder="0" scrolling="no"
-  style="border:none;max-width:640px;display:block;margin:0 auto;">
-</iframe>
-```
+- Demos 1 & 2: none — pure JavaScript
+- Demo 3: [TensorFlow.js 4.17](https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/) loaded from CDN at runtime
 
----
+## Embedding
 
-## Notes
-
-- **Demo 1 & 2** have zero external dependencies — pure JavaScript.
-- **Demo 3** loads TensorFlow.js (~1.5 MB) from jsDelivr CDN on first visit.
-- All demos are responsive; the `max-width` in the iframe style keeps them readable on wide screens.
-- If Squarespace strips the `<iframe>` tag, go to **Settings → Advanced → Code Injection** and add it to the page footer instead.
-- Touch/mobile is supported on all three demos.
+See [`SQUARESPACE.md`](./SQUARESPACE.md) for iframe snippets and Squarespace-specific instructions.
