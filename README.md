@@ -17,9 +17,9 @@ Three self-contained JavaScript demos, no backend required.
 3. Go to **Settings → Pages → Source → Deploy from branch → `main` → `/ (root)` → Save**
 4. Wait ~60 seconds; your pages will be live at:
    ```
-   https://YOUR-USERNAME.github.io/pde-demos/01_green_explorer.html
-   https://YOUR-USERNAME.github.io/pde-demos/02_poisson_solver.html
-   https://YOUR-USERNAME.github.io/pde-demos/03_neural_operator.html
+   https://YOUR-USERNAME.github.io/pde-demos/pages/01_green_explorer.html
+   https://YOUR-USERNAME.github.io/pde-demos/pages/02_poisson_solver.html
+   https://YOUR-USERNAME.github.io/pde-demos/pages/03_neural_operator.html
    ```
 
 ---
@@ -34,7 +34,7 @@ In the Squarespace page editor:
 **Demo 1 — Green's Function Explorer**
 ```html
 <iframe
-  src="https://YOUR-USERNAME.github.io/pde-demos/01_green_explorer.html"
+  src="https://YOUR-USERNAME.github.io/pde-demos/pages/01_green_explorer.html"
   width="100%" height="480" frameborder="0" scrolling="no"
   style="border:none;max-width:620px;display:block;margin:0 auto;">
 </iframe>
@@ -43,7 +43,7 @@ In the Squarespace page editor:
 **Demo 2 — Poisson Solver**
 ```html
 <iframe
-  src="https://YOUR-USERNAME.github.io/pde-demos/02_poisson_solver.html"
+  src="https://YOUR-USERNAME.github.io/pde-demos/pages/02_poisson_solver.html"
   width="100%" height="480" frameborder="0" scrolling="no"
   style="border:none;max-width:620px;display:block;margin:0 auto;">
 </iframe>
@@ -52,7 +52,7 @@ In the Squarespace page editor:
 **Demo 3 — Neural Operator**
 ```html
 <iframe
-  src="https://YOUR-USERNAME.github.io/pde-demos/03_neural_operator.html"
+  src="https://YOUR-USERNAME.github.io/pde-demos/pages/03_neural_operator.html"
   width="100%" height="640" frameborder="0" scrolling="no"
   style="border:none;max-width:640px;display:block;margin:0 auto;">
 </iframe>
