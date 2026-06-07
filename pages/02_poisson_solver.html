@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Poisson Solver — Draw f, see u</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#fff;color:#1a1a2e;padding:20px;max-width:580px;margin:0 auto}
+  h2{font-size:1rem;font-weight:600;margin-bottom:6px}
+  .formula{font-family:monospace;font-size:.78rem;background:#f1f3f5;padding:5px 10px;border-radius:3px;display:inline-block;margin-bottom:16px}
+  .row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+  .col{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .lbl{font-size:.72rem;color:#888;text-align:center}
+  canvas{border:1px solid #e0e0e0;border-radius:4px;display:block}
+  #fCanvas{cursor:crosshair}
+  .btns{display:flex;gap:8px;margin-top:4px}
+  button{padding:6px 14px;border:none;border-radius:4px;cursor:pointer;font-size:.8rem;font-family:inherit}
+  .btn-clear{background:#f1f3f5;color:#555}
+  .btn-clear:hover{background:#e0e0e0}
+  .btn-ex{background:#4361ee;color:#fff}
+  .btn-ex:hover{background:#3451d1}
+  .note{margin-top:14px;font-size:.78rem;color:#666;line-height:1.5}
+  .hi{color:#e85d04;font-weight:600}
+  .hi2{color:#4361ee;font-weight:600}
+</style>
+</head>
+<body>
+
+<h2>2. Solving PDEs with Green's Functions</h2>
+<div class="formula">u(x) = ∫₀¹ G(x,y) f(y) dy &nbsp;—&nbsp; computed live</div>
+
+<div class="row">
+  <div class="col">
+    <div class="lbl"><span style="color:#e85d04;font-weight:600">f(x)</span> — draw the forcing function</div>
+    <canvas id="fCanvas" width="230" height="180"></canvas>
+    <div class="btns">
+      <button class="btn-clear" id="clearBtn">Clear</button>
+      <button class="btn-ex" id="exBtn1">Sine</button>
+      <button class="btn-ex" id="exBtn2">Pulse</button>
+    </div>
+  </div>
+  <div class="col">
+    <div class="lbl"><span style="color:#4361ee;font-weight:600">u(x)</span> — solution (updates instantly)</div>
+    <canvas id="uCanvas" width="230" height="180"></canvas>
+  </div>
+</div>
+
+<div class="note">
+  Draw <span class="hi">f(x)</span> on the left — drag up/down to set the forcing at each point.
+  The operator <span class="hi2">u(x) = ∫G(x,y)f(y)dy</span> is computed immediately.
+  Notice: u is always smooth with u(0)=u(1)=0, even when f is jagged.
+</div>
+
+<script>
+const N = 80;
+const x = Array.from({length:N}, (_,i) => i/(N-1));
+const dx = 1/(N-1);
+
+// Precompute Green's function matrix (80×80, runs once)
+const Gmat = x.map(xi => x.map(xj => Math.min(xi,xj) * (1-Math.max(xi,xj))));
+
+function solve(f) {
+  return Gmat.map(row => row.reduce((s, g, j) => s + g*f[j]*dx, 0));
+}
+
+let fVals = new Array(N).fill(0);
+
+const fC   = document.getElementById('fCanvas');
+const uC   = document.getElementById('uCanvas');
+const fCtx = fC.getContext('2d');
+const uCtx = uC.getContext('2d');
+const CW = fC.width, CH = fC.height;
+const PAD = 22;
+const PW = CW - PAD - 6, PH = CH - PAD - 6;
+
+// ── Plot a curve on a canvas ──────────────────────────────────────────────────
+function plot(ctx, vals, color, symmetric=false) {
+  ctx.fillStyle = '#fafafa'; ctx.fillRect(0, 0, CW, CH);
+
+  let mn, mx;
+  if (symmetric) {
+    const abs = Math.max(Math.abs(Math.min(...vals)), Math.abs(Math.max(...vals)), 0.15);
+    mn = -abs; mx = abs;
+  } else {
+    mn = Math.min(...vals, -0.01); mx = Math.max(...vals, 0.01);
+  }
+  const rng = mx - mn;
+  const toY = v => PAD + PH*(1 - (v-mn)/rng);
+
+  // Background grid at zero
+  const zy = toY(0);
+  ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD, zy); ctx.lineTo(PAD+PW, zy); ctx.stroke();
+
+  // Border
+  ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
+  ctx.strokeRect(PAD, PAD, PW, PH);
+
+  // Axis labels
+  ctx.fillStyle = '#bbb'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  ['0','0.5','1'].forEach((v,i) => ctx.fillText(v, PAD+i*PW/2, CH-2));
+  ctx.textAlign = 'right';
+  ctx.fillText(mx.toFixed(2), PAD-2, PAD+8);
+  ctx.fillText(mn.toFixed(2), PAD-2, PAD+PH+4);
+
+  // Filled area
+  const yBase = Math.max(PAD, Math.min(PAD+PH, zy));
+  ctx.beginPath();
+  vals.forEach((v,i) => {
+    const px = PAD + i/(N-1)*PW, py = toY(v);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  });
+  ctx.lineTo(PAD + PW, yBase); ctx.lineTo(PAD, yBase); ctx.closePath();
+  ctx.fillStyle = color + '28'; ctx.fill();
+
+  // Curve
+  ctx.beginPath();
+  vals.forEach((v,i) => {
+    const px = PAD + i/(N-1)*PW, py = toY(v);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  });
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // Hint text when empty
+  if (vals.every(v => v === 0)) {
+    ctx.fillStyle = '#ccc'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('← draw here →', PAD+PW/2, PAD+PH/2);
+  }
+}
+
+function render() {
+  plot(fCtx, fVals, '#e85d04', true);
+  plot(uCtx, solve(fVals), '#4361ee', false);
+}
+
+render();
+
+// ── Drawing interaction ───────────────────────────────────────────────────────
+let drawing = false;
+let lastI = null;
+
+function getPos(e) {
+  const r = fC.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const rx = (clientX - r.left) / r.width  * CW;
+  const ry = (clientY - r.top)  / r.height * CH;
+  const idx = Math.round((rx - PAD) / PW * (N-1));
+  const val = (PH/2 - (ry - PAD)) / (PH/2) * 1.8;  // center=0, top=+1.8, bot=-1.8
+  return { idx: Math.max(0, Math.min(N-1, idx)), val: Math.max(-2, Math.min(2, val)) };
+}
+
+function applyStroke(pos) {
+  const { idx, val } = pos;
+  // Fill between last and current index to avoid gaps
+  const start = lastI !== null ? Math.min(lastI, idx) : idx;
+  const end   = lastI !== null ? Math.max(lastI, idx) : idx;
+  for (let i = start; i <= end; i++) {
+    const t = end > start ? (i-start)/(end-start) : 0;
+    const v = lastI !== null
+      ? fVals[lastI !== undefined ? (t < 0.5 ? lastI : idx) : idx] * t + val * (1-t)
+      : val;
+    fVals[i] = val; // simple: just set to current val
+  }
+  lastI = idx;
+}
+
+fC.addEventListener('mousedown', e => { drawing=true; lastI=null; applyStroke(getPos(e)); render(); });
+fC.addEventListener('mousemove', e => { if(drawing){ applyStroke(getPos(e)); render(); } });
+document.addEventListener('mouseup', () => { drawing=false; lastI=null; });
+fC.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; lastI=null; applyStroke(getPos(e)); render(); }, {passive:false});
+fC.addEventListener('touchmove',  e => { e.preventDefault(); if(drawing){ applyStroke(getPos(e)); render(); } }, {passive:false});
+fC.addEventListener('touchend',   () => { drawing=false; lastI=null; });
+
+// ── Preset examples ───────────────────────────────────────────────────────────
+document.getElementById('clearBtn').onclick = () => { fVals.fill(0); render(); };
+
+document.getElementById('exBtn1').onclick = () => {
+  fVals = x.map(xi => Math.sin(2*Math.PI*xi) * 1.5 + 0.4*Math.sin(6*Math.PI*xi));
+  render();
+};
+
+document.getElementById('exBtn2').onclick = () => {
+  fVals = x.map(xi => {
+    const g1 = 1.5 * Math.exp(-80*(xi-0.3)**2);
+    const g2 = -1.2 * Math.exp(-80*(xi-0.7)**2);
+    return g1 + g2;
+  });
+  render();
+};
+</script>
+</body>
+</html>

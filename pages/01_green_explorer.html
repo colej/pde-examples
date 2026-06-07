@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Green's Function Explorer</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#fff;color:#1a1a2e;padding:20px;max-width:580px;margin:0 auto}
+  h2{font-size:1rem;font-weight:600;margin-bottom:6px}
+  .formula{font-family:monospace;font-size:.78rem;background:#f1f3f5;padding:5px 10px;border-radius:3px;display:inline-block;margin-bottom:16px}
+  .row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+  .col{display:flex;flex-direction:column;align-items:center;gap:6px}
+  .lbl{font-size:.72rem;color:#888;text-align:center;max-width:230px;line-height:1.4}
+  canvas{border:1px solid #e0e0e0;border-radius:4px;display:block}
+  #heatmap{cursor:crosshair}
+  .note{margin-top:14px;font-size:.78rem;color:#666;line-height:1.5}
+  .hi{color:#4361ee;font-weight:600}
+</style>
+</head>
+<body>
+
+<h2>1. What is a Green's Function?</h2>
+<div class="formula">G(x, y) = min(x,y) · (1 − max(x,y)) &nbsp;→&nbsp; u(x) = ∫₀¹ G(x,y) f(y) dy</div>
+
+<div class="row">
+  <div class="col">
+    <div class="lbl">G(x, y) — the full kernel<br><small>hover left/right to pick y₀</small></div>
+    <canvas id="heatmap" width="230" height="230"></canvas>
+  </div>
+  <div class="col">
+    <div class="lbl">G(x, y₀) — response to a point source at <span id="y0lbl" class="hi">y₀ = 0.50</span></div>
+    <canvas id="slice" width="230" height="170"></canvas>
+  </div>
+</div>
+
+<div class="note">
+  G(x, y₀) is the solution u when f = δ(x − y₀): a single point source at y₀.
+  The <span class="hi">tent shape</span> reflects how the source influences nearby points most.
+  Any forcing f is solved by summing these tents — weighted by f(y).
+</div>
+
+<script>
+// Viridis colormap approximation
+function vir(t) {
+  t = Math.max(0, Math.min(1, t));
+  const s = [[68,1,84],[58,82,139],[32,145,140],[94,201,98],[253,231,37]];
+  const fi = t*(s.length-1), lo = Math.floor(fi), hi = Math.min(lo+1, s.length-1), f = fi-lo;
+  return s[lo].map((c,k) => Math.round(c + f*(s[hi][k]-c)));
+}
+
+function G(xi, yi) { return Math.min(xi,yi) * (1 - Math.max(xi,yi)); }
+
+const HM = document.getElementById('heatmap');
+const SL = document.getElementById('slice');
+const W = HM.width, H = HM.height;
+const SW = SL.width, SH = SL.height;
+const GMAX = 0.25;
+
+// ── Render full heatmap (once) ────────────────────────────────────────────────
+const hCtx = HM.getContext('2d');
+const imgData = hCtx.createImageData(W, H);
+for (let py = 0; py < H; py++) {
+  for (let px = 0; px < W; px++) {
+    const xi = px/W, yi = 1 - py/H;
+    const [r,g,b] = vir(G(xi,yi) / GMAX);
+    const i = (py*W + px)*4;
+    imgData.data[i]=r; imgData.data[i+1]=g; imgData.data[i+2]=b; imgData.data[i+3]=255;
+  }
+}
+hCtx.putImageData(imgData, 0, 0);
+// Axis labels on heatmap
+hCtx.fillStyle='rgba(255,255,255,0.85)'; hCtx.font='10px system-ui'; hCtx.textAlign='center';
+hCtx.fillText('y →', W/2, H-4);
+hCtx.save(); hCtx.translate(8, H/2); hCtx.rotate(-Math.PI/2);
+hCtx.fillText('x →', 0, 0); hCtx.restore();
+// Store snapshot
+const baseImg = hCtx.getImageData(0, 0, W, H);
+
+// ── Draw 1D slice at y₀ ───────────────────────────────────────────────────────
+function drawSlice(y0) {
+  const ctx = SL.getContext('2d');
+  const PAD = 24, PW = SW-PAD-8, PH = SH-PAD-8;
+  ctx.fillStyle = '#fafafa'; ctx.fillRect(0, 0, SW, SH);
+
+  // Grid
+  ctx.strokeStyle = '#eee'; ctx.lineWidth = 1;
+  [0.1, 0.2].forEach(v => {
+    const py = 6 + PH*(1 - v/GMAX);
+    ctx.beginPath(); ctx.moveTo(PAD, py); ctx.lineTo(PAD+PW, py); ctx.stroke();
+  });
+
+  // Axes
+  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD, 6); ctx.lineTo(PAD, PAD+PH);
+  ctx.moveTo(PAD, PAD+PH); ctx.lineTo(PAD+PW, PAD+PH);
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = '#aaa'; ctx.font = '9px system-ui'; ctx.textAlign = 'right';
+  ctx.fillText('0.25', PAD-2, 6+PH*(1-1)+4);
+  ctx.fillText('0', PAD-2, PAD+PH+4);
+  ctx.textAlign = 'center';
+  ['0','0.5','1'].forEach((v,i) => ctx.fillText(v, PAD+i*0.5*PW, SH-2));
+  ctx.fillText('x', PAD+PW/2, SH-2);
+
+  // Filled area under curve
+  ctx.beginPath();
+  const py0 = PAD+PH; // zero line
+  for (let px = 0; px <= PW; px++) {
+    const xi = px/PW, val = G(xi, y0);
+    const py = 6 + PH*(1 - val/GMAX);
+    px === 0 ? ctx.moveTo(PAD+px, py) : ctx.lineTo(PAD+px, py);
+  }
+  ctx.lineTo(PAD+PW, py0); ctx.lineTo(PAD, py0); ctx.closePath();
+  ctx.fillStyle = 'rgba(67,97,238,0.15)'; ctx.fill();
+
+  // Curve
+  ctx.beginPath();
+  for (let px = 0; px <= PW; px++) {
+    const xi = px/PW, val = G(xi, y0);
+    const py = 6 + PH*(1 - val/GMAX);
+    px === 0 ? ctx.moveTo(PAD+px, py) : ctx.lineTo(PAD+px, py);
+  }
+  ctx.strokeStyle = '#4361ee'; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // y₀ marker
+  const px0 = PAD + y0*PW;
+  ctx.strokeStyle = 'rgba(220,50,50,.75)'; ctx.lineWidth = 1.5;
+  ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(px0, 4); ctx.lineTo(px0, PAD+PH); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(220,50,50,.85)'; ctx.font='bold 10px system-ui'; ctx.textAlign='left';
+  ctx.fillText('y₀', px0+3, 16);
+}
+
+// ── Add red line on heatmap at y₀ ────────────────────────────────────────────
+function drawLine(y0) {
+  hCtx.putImageData(baseImg, 0, 0);
+  const px = Math.round(y0 * W);
+  hCtx.strokeStyle = 'rgba(220,50,50,0.85)'; hCtx.lineWidth = 1.5;
+  hCtx.beginPath(); hCtx.moveTo(px, 0); hCtx.lineTo(px, H); hCtx.stroke();
+}
+
+// Init at y₀=0.5
+drawSlice(0.5); drawLine(0.5);
+
+// Mouse / touch
+function update(clientX) {
+  const r = HM.getBoundingClientRect();
+  const y0 = Math.max(0.01, Math.min(0.99, (clientX - r.left) / r.width));
+  document.getElementById('y0lbl').textContent = `y₀ = ${y0.toFixed(2)}`;
+  drawLine(y0); drawSlice(y0);
+}
+HM.addEventListener('mousemove', e => update(e.clientX));
+HM.addEventListener('touchmove', e => { e.preventDefault(); update(e.touches[0].clientX); }, {passive:false});
+</script>
+</body>
+</html>
