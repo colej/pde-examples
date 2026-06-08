@@ -268,8 +268,8 @@
     <div class="eyebrow">Interactive demos · PDEs · Machine learning</div>
     <h1>Green's Functions<br>&amp; <em>Neural Operators</em></h1>
     <p class="hero-sub">
-      Three browser-based demos that walk through how partial differential equations
-      are solved analytically — and how neural networks can learn the same solution
+      Four browser-based demos that walk through how partial differential equations
+      are solved numerically — and how neural networks can learn the same solution
       map directly from data.
     </p>
     <div class="equation">−u″(x) = f(x),&nbsp; x ∈ [0,1],&nbsp; u(0) = u(1) = 0</div>
@@ -282,33 +282,35 @@
     <div class="section-label">Background</div>
     <h2>From integrals to learned operators</h2>
     <p>
-      The Green's function G(x,y) encodes the response of a system to a point source.
-      Once known, any forcing f can be solved instantly as a single integral:
-      u(x) = ∫ G(x,y) f(y) dy. For many real problems, G has no closed form —
-      motivating a different approach.
+      The standard approach to −u″ = f is to discretise the domain and solve a linear system
+      <strong style="color:var(--bright)">Au = f</strong> — once per forcing function.
+      The Green's function G = A⁻¹ precomputes this inverse so any f is solved with
+      a single integral: u(x) = ∫ G(x,y) f(y) dy.
+      For problems where G has no closed form, a <strong style="color:var(--bright)">neural operator</strong>
+      learns the same mapping f(·) ↦ u(·) directly from data.
     </p>
-    <p>
-      A <strong style="color:var(--bright)">neural operator</strong> learns the mapping
-      f(·) ↦ u(·) directly from data, approximating the Green's function implicitly.
-      The demos below trace this arc — from the exact kernel, through live PDE solving,
-      to a network trained entirely in the browser.
-    </p>
+    <p>The four demos below trace this arc in order — direct solver, analytic kernel, integral operator, learned operator. New to PDEs? Start with the <a href="pages/intro.html" style="color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor">background reading</a>. Want a broader survey of classical solvers? See <a href="pages/methods.html" style="color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor">methods for solving PDEs</a>.</p>
 
     <div class="concept-grid">
       <div class="concept-cell">
-        <div class="icon">🎯</div>
-        <h3>Point source</h3>
-        <p>G(x, y₀) is the solution when f is concentrated at a single point y₀ — a delta function.</p>
+        <div class="icon">⊟</div>
+        <h3>Finite differences</h3>
+        <p>Discretise −u″ = f to get a tridiagonal system Au = f, solved in O(N) via the Thomas algorithm.</p>
       </div>
       <div class="concept-cell">
-        <div class="icon">∑</div>
-        <h3>Superposition</h3>
-        <p>Any f is a sum of point sources, so any u is the corresponding weighted sum of impulse responses.</p>
+        <div class="icon">🎯</div>
+        <h3>Green's function</h3>
+        <p>G = A⁻¹. Each column is the response to a point source — precompute once, apply to any f instantly.</p>
+      </div>
+      <div class="concept-cell">
+        <div class="icon">∫</div>
+        <h3>Integral operator</h3>
+        <p>u(x) = ∫ G(x,y) f(y) dy — the solution as a weighted sum of impulse responses.</p>
       </div>
       <div class="concept-cell">
         <div class="icon">🧠</div>
         <h3>Neural operator</h3>
-        <p>DeepONet learns branch(f) · trunk(x) ≈ u(x), implicitly discovering the kernel from examples.</p>
+        <p>DeepONet learns branch(f) · trunk(x) ≈ u(x), implicitly recovering G from examples alone.</p>
       </div>
     </div>
   </div>
@@ -318,10 +320,29 @@
 <section class="section">
   <div class="container">
     <div class="section-label">Demos</div>
-    <h2>Three interactive examples</h2>
-    <p>Each demo builds on the last. Start with the kernel, then solve live, then replace the integral with a network.</p>
+    <h2>Four interactive examples</h2>
+    <p>Each demo builds on the last. Start with the direct solver, then precompute the kernel, solve live via the integral, then replace the whole pipeline with a network.</p>
 
     <div class="demos">
+
+      <a class="card" href="pages/00_forward_pass.html">
+        <div class="card-num">00</div>
+        <div class="card-body">
+          <div class="card-title">The Forward Problem: Finite Differences</div>
+          <div class="card-desc">
+            Discretise −u″ = f on a uniform grid to get the tridiagonal linear system
+            <strong>Au = f</strong>. Draw any forcing function and watch it solved
+            in real time via the Thomas algorithm. The matrix A is shown explicitly —
+            setting up the question: can we avoid re-solving for every new f?
+          </div>
+          <div class="tag-row">
+            <span class="tag">pure JS</span>
+            <span class="tag">Thomas algorithm</span>
+            <span class="tag">interactive</span>
+          </div>
+        </div>
+        <div class="card-arrow">→</div>
+      </a>
 
       <a class="card" href="pages/01_green_explorer.html">
         <div class="card-num">01</div>
@@ -330,7 +351,7 @@
           <div class="card-desc">
             Hover over the G(x, y) kernel heatmap to pick a source location y₀.
             The right panel shows G(·, y₀) — the tent-shaped solution to −u″ = δ(x − y₀).
-            Builds the intuition that every solution is a weighted sum of these curves.
+            G is exactly A⁻¹: precomputing it means any f is solved with a single integral.
           </div>
           <div class="tag-row">
             <span class="tag">pure JS</span>

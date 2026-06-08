@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What is a PDE? — From L_a u = f to Neural Operators</title>
+
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[
+    {left:'$$',right:'$$',display:true},
+    {left:'$',right:'$',display:false}
+  ]})"></script>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:       #faf9f7;
+    --surface:  #f3f1ee;
+    --border:   #e2ddd8;
+    --muted:    #9c9489;
+    --text:     #2c2825;
+    --light:    #6b6460;
+    --accent:   #c0400a;
+    --accent2:  #2d5f9e;
+    --serif:    'EB Garamond', Georgia, serif;
+    --mono:     'DM Mono', 'Fira Code', monospace;
+    --sans:     'DM Sans', system-ui, sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--serif);
+    font-size: 1.08rem;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Page layout ──────────────────────────────────────────────────────────── */
+  .page {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ── Header ───────────────────────────────────────────────────────────────── */
+  header {
+    padding: 60px 0 44px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .back {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .06em;
+    color: var(--muted);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 28px;
+  }
+  .back:hover { color: var(--accent); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  header h1 {
+    font-family: var(--serif);
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  header h1 em { font-style: italic; color: var(--accent); }
+
+  .lede {
+    font-size: 1.05rem;
+    color: var(--light);
+    font-style: italic;
+    max-width: 560px;
+    line-height: 1.7;
+  }
+
+  /* ── Article body ─────────────────────────────────────────────────────────── */
+  article { padding: 48px 0 64px; }
+
+  /* Section headings */
+  .sec {
+    margin-top: 52px;
+    margin-bottom: 20px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  .sec-num {
+    font-family: var(--mono);
+    font-size: .65rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.25;
+  }
+
+  /* Paragraphs */
+  p { margin-bottom: 1.2em; }
+  p:last-child { margin-bottom: 0; }
+
+  /* Display equations */
+  .eq-block {
+    margin: 28px 0;
+    padding: 18px 24px;
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    overflow-x: auto;
+  }
+
+  .eq-block.blue { border-left-color: var(--accent2); }
+
+  .eq-label {
+    font-family: var(--mono);
+    font-size: .68rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  /* Aside / callout box */
+  .callout {
+    margin: 32px 0;
+    padding: 18px 22px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: .92rem;
+    color: var(--light);
+    line-height: 1.7;
+  }
+
+  .callout strong { color: var(--text); font-weight: 500; }
+
+  .callout-head {
+    font-family: var(--mono);
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  /* Inline code */
+  code {
+    font-family: var(--mono);
+    font-size: .82em;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--text);
+  }
+
+  /* Demo link cards */
+  .demo-links { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; }
+
+  .demo-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: .88rem;
+    transition: border-color .18s;
+  }
+
+  .demo-link:hover { border-color: var(--accent); }
+
+  .demo-link .num {
+    font-family: var(--mono);
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--accent);
+    flex-shrink: 0;
+    width: 28px;
+  }
+
+  .demo-link .desc { color: var(--light); font-size: .8rem; margin-top: 2px; }
+  .demo-link .arr { margin-left: auto; color: var(--border); font-size: 1rem; }
+  .demo-link:hover .arr { color: var(--accent); }
+
+  /* Footer ─────────────────────────────────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 28px 0;
+    font-family: var(--mono);
+    font-size: .68rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--accent); }
+
+  @media (max-width: 500px) {
+    header { padding: 40px 0 32px; }
+    article { padding: 32px 0 48px; }
+    .eq-block { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ── Header ────────────────────────────────────────────────────────────────── -->
+<header>
+  <a class="back" href="../index.html">← back to demos</a>
+  <div class="eyebrow">Background reading</div>
+  <h1>What is a PDE?<br>From <em>$\mathcal{L}_a\, u = f$</em> to neural operators</h1>
+  <p class="lede">
+    A self-contained introduction to partial differential equations as operator equations,
+    and the question that motivates learning solution maps from data.
+  </p>
+</header>
+
+<!-- ── Article ────────────────────────────────────────────────────────────────── -->
+<article>
+
+<!-- 1 -->
+<div class="sec"><div class="sec-num">§ 1</div><h2>Equations that relate a function to its own rates of change</h2></div>
+
+<p>
+  An ordinary differential equation (ODE) asks: find a function $u(x)$ whose
+  derivatives satisfy some prescribed relation. The simplest non-trivial example
+  is $u' = u$, whose solution is the exponential $u(x) = e^x$.
+  A <em>partial</em> differential equation (PDE) generalises this to functions of
+  several variables — but even in one spatial dimension the essential character
+  is the same: the unknown $u$ appears alongside its own derivatives.
+</p>
+
+<p>
+  Throughout these demos we work with a single spatial variable $x \in [0, 1]$
+  and the equation
+</p>
+
+<div class="eq-block">
+  <div class="eq-label">The governing equation</div>
+  $$-\frac{d}{dx}\!\left(a(x)\,\frac{du}{dx}\right) \;=\; f(x), \qquad u(0) = u(1) = 0.$$
+</div>
+
+<p>
+  Here $f(x)$ is a given <em>forcing function</em> — something we impose on the system —
+  and $u(x)$ is the unknown <em>response</em> we want to find.
+  The function $a(x) > 0$ is a <em>coefficient</em> that describes a physical property
+  of the medium: in heat conduction it is thermal conductivity; in groundwater flow
+  (Darcy flow) it is permeability. Everything interesting about the problem lives
+  in the interplay between $a$, $f$, and $u$.
+</p>
+
+<!-- 2 -->
+<div class="sec"><div class="sec-num">§ 2</div><h2>Thinking in operators: $\mathcal{L}_a\, u = f$</h2></div>
+
+<p>
+  It is useful to give the left-hand side a name. Define the <em>differential operator</em>
+</p>
+
+<div class="eq-block">
+  <div class="eq-label">The parameterised operator</div>
+  $$\mathcal{L}_a \;:=\; -\frac{d}{dx}\!\left(a(x)\,\frac{d}{dx}\right).$$
+</div>
+
+<p>
+  With this notation our equation becomes simply $\mathcal{L}_a\, u = f$.
+  Think of $\mathcal{L}_a$ as a machine that takes a function $u$ and returns another function.
+  It is <em>linear</em>: $\mathcal{L}_a(\alpha u + \beta v) = \alpha\,\mathcal{L}_a u + \beta\,\mathcal{L}_a v$
+  for any constants $\alpha, \beta$. Linearity is what makes the whole theory of
+  Green's functions possible.
+</p>
+
+<p>
+  Expanding the product rule, $\mathcal{L}_a u = -a(x)\,u''(x) - a'(x)\,u'(x)$.
+  When the coefficient is constant, $a(x) = 1$, the second term vanishes and we recover
+  the familiar <em>Poisson equation</em>:
+</p>
+
+<div class="eq-block blue">
+  <div class="eq-label">Special case: Poisson equation ($a \equiv 1$)</div>
+  $$-u''(x) = f(x), \qquad u(0) = u(1) = 0.$$
+</div>
+
+<p>
+  This is the equation solved in all four interactive demos. It is the simplest
+  non-trivial member of the family $\{\mathcal{L}_a\}_{a > 0}$, and it admits a
+  closed-form Green's function — which is what makes it such a clean starting point.
+</p>
+
+<!-- 3 -->
+<div class="sec"><div class="sec-num">§ 3</div><h2>The forward problem: given $a$ and $f$, find $u$</h2></div>
+
+<p>
+  Solving $\mathcal{L}_a\, u = f$ for $u$ — given $a$ and $f$ — is called the
+  <em>forward problem</em>. In the constant-coefficient case, the standard numerical
+  approach is to discretise the domain on a uniform grid of $N+1$ interior points
+  with spacing $h = 1/(N+1)$. The second derivative is approximated by the
+  centred finite-difference stencil:
+</p>
+
+<div class="eq-block">
+  <div class="eq-label">Finite-difference approximation</div>
+  $$-u''(x_i) \;\approx\; \frac{-u_{i-1} + 2u_i - u_{i+1}}{h^2} \;=\; f_i.$$
+</div>
+
+<p>
+  Writing this for every interior point simultaneously produces a linear system
+  $\mathbf{A}\mathbf{u} = \mathbf{f}$, where $\mathbf{A}$ is the familiar
+  <em>tridiagonal</em> matrix with $2/h^2$ on the main diagonal and $-1/h^2$
+  on the two adjacent diagonals. Because of this special structure, the system
+  can be solved in $O(N)$ operations via the <strong>Thomas algorithm</strong>
+  (forward elimination followed by back substitution).
+</p>
+
+<div class="callout">
+  <div class="callout-head">Demo 00</div>
+  The <strong>Forward Pass</strong> demo implements exactly this. Draw any $f(x)$,
+  and the Thomas algorithm solves $\mathbf{A}\mathbf{u} = \mathbf{f}$ in real time.
+  The tridiagonal structure of $\mathbf{A}$ is shown as a heatmap — each new $f$
+  requires a fresh solve.
+</div>
+
+<!-- 4 -->
+<div class="sec"><div class="sec-num">§ 4</div><h2>The Green's function: precomputing the inverse</h2></div>
+
+<p>
+  Solving the system afresh for every $f$ is wasteful when the operator $\mathcal{L}_a$
+  — and therefore $\mathbf{A}$ — stays fixed. The <em>Green's function</em>
+  $G_a(x, y)$ is defined as the solution to
+</p>
+
+<div class="eq-block">
+  <div class="eq-label">Defining equation for $G_a$</div>
+  $$\mathcal{L}_a\, G_a(x, y) \;=\; \delta(x - y), \qquad G_a(0,y) = G_a(1,y) = 0,$$
+</div>
+
+<p>
+  where $\delta(x - y)$ is a Dirac delta — a unit point source located at $y$.
+  In matrix language, $G_a$ encodes the columns of $\mathbf{A}^{-1}$: each column
+  is the solution when $f$ is a unit spike at a single grid point.
+</p>
+
+<p>
+  Once $G_a$ is known, <em>any</em> forcing $f$ can be handled without another solve.
+  By linearity and superposition, the solution is simply the integral of $G_a$ against $f$:
+</p>
+
+<div class="eq-block">
+  <div class="eq-label">Solution via the Green's function</div>
+  $$u(x) \;=\; \int_0^1 G_a(x,\, y)\; f(y)\; dy.$$
+</div>
+
+<p>
+  For the Poisson equation ($a \equiv 1$) the Green's function is known analytically:
+</p>
+
+<div class="eq-block blue">
+  <div class="eq-label">Closed form for $a \equiv 1$</div>
+  $$G_1(x, y) \;=\; \min(x, y)\cdot\bigl(1 - \max(x, y)\bigr).$$
+</div>
+
+<p>
+  This is a piecewise-linear <em>tent function</em> — symmetric in $x$ and $y$, peaking
+  at $(x, y) = (x_0, x_0)$ along the diagonal, and vanishing at the boundaries.
+  Its symmetry reflects the self-adjointness of $\mathcal{L}_1$.
+</p>
+
+<div class="callout">
+  <div class="callout-head">Demos 01 &amp; 02</div>
+  <strong>Demo 01</strong> visualises $G_1(x, y)$ as a 2D heatmap and lets you
+  read off the impulse response at any source location $y_0$.
+  <strong>Demo 02</strong> uses the integral formula directly:
+  draw $f$, and $u(x) = \int G_1(x,y)\,f(y)\,dy$ updates in real time.
+</div>
+
+<!-- 5 -->
+<div class="sec"><div class="sec-num">§ 5</div><h2>Why parameterise by $a$?</h2></div>
+
+<p>
+  The Poisson equation is clean but atypical. In practice the coefficient $a(x)$
+  varies across the domain — it might represent spatially heterogeneous soil
+  permeability in a groundwater model, or locally varying thermal conductivity
+  in a heat-transfer simulation. Every distinct $a$ gives a different operator
+  $\mathcal{L}_a$, and therefore a different Green's function $G_a$.
+</p>
+
+<p>
+  This is the crux of the difficulty. Even if computing $G_a$ for one fixed $a$
+  is feasible, doing it for many different coefficient fields — as arises in
+  uncertainty quantification, design optimisation, or inverse problems —
+  becomes prohibitively expensive. What we really want is not a single $G_a$
+  but the full <em>solution operator</em>:
+</p>
+
+<div class="eq-block">
+  <div class="eq-label">The solution operator</div>
+  $$\mathcal{S}: a \;\longmapsto\; \bigl(f \mapsto u\bigr),$$
+</div>
+
+<p>
+  a map that takes a coefficient field and returns the corresponding solver.
+  In the constant-$a$ setting we have been using, $\mathcal{S}$ reduces to
+  the map $f \mapsto u = \int G_1(\cdot, y)\,f(y)\,dy$. In the general case,
+  $\mathcal{S}$ is a map between infinite-dimensional function spaces.
+</p>
+
+<!-- 6 -->
+<div class="sec"><div class="sec-num">§ 6</div><h2>Approximating $\mathcal{S}$ with a neural operator</h2></div>
+
+<p>
+  A <em>neural operator</em> is a neural network architecture designed to approximate
+  maps between function spaces — objects like $\mathcal{S}$.
+  The key insight is that such a map must be <em>discretisation-invariant</em>:
+  if we refine the grid from $N = 32$ to $N = 128$ points, the learned operator
+  should still apply, without retraining.
+</p>
+
+<p>
+  The simplest neural operator is <strong>DeepONet</strong> (Lu et al., 2021),
+  which represents the output as
+</p>
+
+<div class="eq-block">
+  <div class="eq-label">DeepONet approximation</div>
+  $$\hat{u}(x) \;=\; \underbrace{\mathbf{b}(f)}_{\text{branch net}} \cdot \underbrace{\mathbf{t}(x)}_{\text{trunk net}} + \beta,$$
+</div>
+
+<p>
+  where the <em>branch net</em> encodes the input function $f$ (evaluated at
+  fixed sensor locations) into a vector, and the <em>trunk net</em> encodes the
+  query point $x$. Their dot product approximates the integral
+  $\int G_a(x, y)\,f(y)\,dy$ — the network is implicitly learning the kernel.
+</p>
+
+<p>
+  Once trained on pairs $(f_i, u_i)$ generated by the true PDE solver, the
+  network evaluates in microseconds regardless of grid resolution — making it
+  practical for the many-query settings where classical solvers become expensive.
+</p>
+
+<div class="callout">
+  <div class="callout-head">Demo 03</div>
+  The <strong>Neural Operator</strong> demo trains a DeepONet entirely in the browser
+  using TensorFlow.js. After training on 600 $(f, u)$ pairs drawn from the Poisson
+  equation, it visualises: (a) test predictions against ground truth, and
+  (b) the <em>learned</em> Green's function recovered by probing the network
+  with narrow Gaussians — compared directly with the true $G_1(x,y)$.
+</div>
+
+<!-- 7 -->
+<div class="sec"><div class="sec-num">§ 7</div><h2>The arc of the four demos</h2></div>
+
+<p>
+  The demos that follow trace the complete path from elementary PDE numerics
+  to the learned operator — each one posing the question that the next one answers.
+</p>
+
+<div class="demo-links">
+  <a class="demo-link" href="00_forward_pass.html">
+    <span class="num">00</span>
+    <div>
+      <div>Forward pass — finite differences</div>
+      <div class="desc">Discretise $\mathcal{L}_1 u = f$ to get $\mathbf{A}\mathbf{u}=\mathbf{f}$; solve with the Thomas algorithm. Poses the question: can we avoid re-solving for every $f$?</div>
+    </div>
+    <span class="arr">→</span>
+  </a>
+  <a class="demo-link" href="01_green_explorer.html">
+    <span class="num">01</span>
+    <div>
+      <div>Green's function explorer</div>
+      <div class="desc">Yes — precompute $G_1 = \mathbf{A}^{-1}$ and read off the impulse response at any source location $y_0$.</div>
+    </div>
+    <span class="arr">→</span>
+  </a>
+  <a class="demo-link" href="02_poisson_solver.html">
+    <span class="num">02</span>
+    <div>
+      <div>Live Poisson solver</div>
+      <div class="desc">Apply $u(x) = \int G_1(x,y)\,f(y)\,dy$ in real time. Any $f$ you draw is answered instantly.</div>
+    </div>
+    <span class="arr">→</span>
+  </a>
+  <a class="demo-link" href="03_neural_operator.html">
+    <span class="num">03</span>
+    <div>
+      <div>DeepONet — neural operator</div>
+      <div class="desc">What if $G_a$ has no closed form? Train a network to learn the map $f \mapsto u$ from data — no Green's function required.</div>
+    </div>
+    <span class="arr">→</span>
+  </a>
+</div>
+
+</article>
+
+<footer>
+  <span><a href="../index.html">← all demos</a></span>
+  <span>pde-examples · <a href="https://github.com/colej/pde-examples">github.com/colej/pde-examples</a></span>
+</footer>
+
+</div><!-- .page -->
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forward Problem — Finite Differences</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#fff;color:#1a1a2e;padding:20px;max-width:600px;margin:0 auto}
+  h2{font-size:1rem;font-weight:600;margin-bottom:5px}
+  .formula{font-family:monospace;font-size:.78rem;background:#f1f3f5;padding:5px 10px;border-radius:3px;display:inline-block;margin-bottom:16px}
+
+  /* Matrix + explanation row */
+  .top-row{display:flex;gap:18px;align-items:flex-start;margin-bottom:22px;flex-wrap:wrap}
+  .mat-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0}
+  .mat-wrap .lbl{font-size:.7rem;color:#888;text-align:center}
+  canvas{border:1px solid #e0e0e0;border-radius:4px;display:block}
+  .explainer{flex:1;min-width:200px}
+  .explainer p{font-size:.82rem;color:#444;line-height:1.65;margin-bottom:10px}
+  .explainer code{font-family:monospace;font-size:.78rem;background:#f1f3f5;padding:2px 5px;border-radius:3px}
+
+  /* Solver row */
+  .solver-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;justify-content:center}
+  .col{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .lbl{font-size:.72rem;color:#888;text-align:center}
+  #fCanvas{cursor:crosshair}
+
+  /* Arrow */
+  .arrow-col{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding-bottom:36px;flex-shrink:0}
+  .arrow-label{font-family:monospace;font-size:.68rem;color:#aaa;text-align:center;line-height:1.4}
+  .arrow-sym{font-size:1.4rem;color:#bbb}
+
+  /* Buttons */
+  .btns{display:flex;gap:7px;margin-top:3px}
+  button{padding:5px 12px;border:none;border-radius:4px;cursor:pointer;font-size:.78rem;font-family:inherit}
+  .btn-c{background:#f1f3f5;color:#555}.btn-c:hover{background:#e0e0e0}
+  .btn-e{background:#e85d04;color:#fff}.btn-e:hover{background:#c94e00}
+
+  /* Note */
+  .note{margin-top:18px;font-size:.78rem;color:#666;line-height:1.6;padding:10px 14px;background:#f8f9fa;border-left:3px solid #e85d04;border-radius:0 4px 4px 0}
+  .hi{color:#e85d04;font-weight:600}
+
+  /* Step counter */
+  .step-label{display:inline-block;font-family:monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;background:#e85d04;color:#fff;padding:2px 7px;border-radius:3px;margin-bottom:8px}
+</style>
+</head>
+<body>
+
+<div class="step-label">Step 0</div>
+<h2>The Forward Problem: Finite Differences</h2>
+<div class="formula">−u″(x) = f(x) &nbsp;→&nbsp; <strong>A</strong>u = f &nbsp;→&nbsp; solve the linear system</div>
+
+<!-- Matrix + explanation -->
+<div class="top-row">
+  <div class="mat-wrap">
+    <div class="lbl">Matrix <strong>A</strong>&nbsp;(tridiagonal)</div>
+    <canvas id="matCanvas" width="150" height="150"></canvas>
+  </div>
+  <div class="explainer">
+    <p>
+      Discretise on a uniform grid with spacing <code>h = 1/(N+1)</code>.
+      At each interior point, the second derivative becomes:
+    </p>
+    <p style="font-family:monospace;font-size:.8rem;background:#f1f3f5;padding:8px 10px;border-radius:4px;line-height:1.8">
+      −u″(xᵢ) ≈ (−u[i−1] + 2u[i] − u[i+1]) / h²
+    </p>
+    <p>
+      This gives the sparse linear system <strong>Au = f</strong>, where
+      <strong>A</strong> is the tridiagonal matrix shown left.
+      The boundary conditions u(0) = u(1) = 0 are built in automatically.
+    </p>
+    <p>
+      For each new forcing f, we solve <strong>Au = f</strong> using the
+      <em>Thomas algorithm</em> — an O(N) tridiagonal solver.
+    </p>
+  </div>
+</div>
+
+<!-- Solver: draw f → u -->
+<div class="solver-row">
+  <div class="col">
+    <div class="lbl">f(x) — draw the forcing</div>
+    <canvas id="fCanvas" width="210" height="170"></canvas>
+    <div class="btns">
+      <button class="btn-c" id="clearBtn">Clear</button>
+      <button class="btn-e" id="ex1Btn">Sine</button>
+      <button class="btn-e" id="ex2Btn">Pulse</button>
+    </div>
+  </div>
+
+  <div class="arrow-col">
+    <div class="arrow-label">Au&nbsp;=&nbsp;f<br>Thomas<br>algorithm</div>
+    <div class="arrow-sym">→</div>
+  </div>
+
+  <div class="col">
+    <div class="lbl">u(x) — finite difference solution</div>
+    <canvas id="uCanvas" width="210" height="170"></canvas>
+  </div>
+</div>
+
+<div class="note">
+  This works, but every new f requires <span class="hi">solving a fresh linear system</span>.
+  The next demo asks: can we precompute something that avoids this? That something is the <span class="hi">Green's function G = A⁻¹</span>.
+</div>
+
+<script>
+// ── Grid: N interior points, h = 1/(N+1) ─────────────────────────────────────
+const N  = 60;
+const h  = 1 / (N + 1);
+const h2 = h * h;
+
+// Full display grid including boundaries (N+2 points)
+const xFull = Array.from({length: N+2}, (_, i) => i * h);  // 0, h, 2h, ..., 1
+
+// ── Draw matrix A as a heatmap ────────────────────────────────────────────────
+(function drawMatrix() {
+  const canvas = document.getElementById('matCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  // Draw a reduced version (Nv × Nv) for visibility
+  const Nv = 40;
+  const tmp = document.createElement('canvas'); tmp.width = Nv; tmp.height = Nv;
+  const tCtx = tmp.getContext('2d');
+  const img = tCtx.createImageData(Nv, Nv);
+
+  for (let row = 0; row < Nv; row++) {
+    for (let col = 0; col < Nv; col++) {
+      const diff = Math.abs(row - col);
+      // Main diagonal = 2, off-diagonals = -1, else = 0
+      let val;
+      if      (diff === 0) val = 1.0;   // main diagonal (positive, bright)
+      else if (diff === 1) val = 0.45;  // off-diagonal (medium)
+      else                 val = 0.0;   // zero
+
+      // Color: zeros → dark, diag → orange, off-diag → muted orange
+      let r, g, b;
+      if (val === 0) { r=245; g=247; b=250; }
+      else if (diff === 0) { r=232; g=93; b=4; }   // #e85d04
+      else                 { r=255; g=180; b=120; }
+
+      const idx = (row * Nv + col) * 4;
+      img.data[idx]=r; img.data[idx+1]=g; img.data[idx+2]=b; img.data[idx+3]=255;
+    }
+  }
+  tCtx.putImageData(img, 0, 0);
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(tmp, 0, 0, W, H);
+
+  // Border
+  ctx.strokeStyle = '#e0e0e0'; ctx.lineWidth = 1;
+  ctx.strokeRect(0, 0, W, H);
+
+  // Labels
+  ctx.fillStyle = '#aaa'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('j', W/2, H-1);
+  ctx.save(); ctx.translate(7, H/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('i', 0, 0); ctx.restore();
+})();
+
+// ── Thomas algorithm (tridiagonal solver) ─────────────────────────────────────
+// Solves: (-1/h²)u[i-1] + (2/h²)u[i] + (-1/h²)u[i+1] = f[i]
+// Returns u at N interior points (boundary u[0]=u[N+1]=0 not included)
+function thomasSolve(fInterior) {
+  const n = fInterior.length;
+  const a = -1 / h2;   // sub-diagonal
+  const bv = 2 / h2;   // main diagonal
+  const c = -1 / h2;   // super-diagonal
+
+  // Forward elimination
+  const cp = new Float64Array(n);
+  const dp = new Float64Array(n);
+  cp[0] = c / bv;
+  dp[0] = fInterior[0] / bv;
+  for (let i = 1; i < n; i++) {
+    const denom = bv - a * cp[i-1];
+    cp[i] = c / denom;
+    dp[i] = (fInterior[i] - a * dp[i-1]) / denom;
+  }
+
+  // Back substitution
+  const u = new Float64Array(n);
+  u[n-1] = dp[n-1];
+  for (let i = n-2; i >= 0; i--) u[i] = dp[i] - cp[i] * u[i+1];
+
+  return u;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+// fFull: values at xFull (N+2 points), boundaries forced to 0
+let fFull = new Float64Array(N + 2);
+
+function computeU() {
+  const fInt = fFull.slice(1, N+1);  // interior values
+  const uInt = thomasSolve(fInt);
+  // Assemble full solution with boundary conditions
+  const uFull = new Float64Array(N + 2);
+  for (let i = 0; i < N; i++) uFull[i+1] = uInt[i];
+  return uFull;
+}
+
+// ── Plot a curve on canvas ────────────────────────────────────────────────────
+const CW = 210, CH = 170, PAD = 20;
+const PW = CW - 2*PAD, PH = CH - 2*PAD;
+
+function plotCurve(canvas, vals, color, symmetric=false) {
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fafafa'; ctx.fillRect(0, 0, CW, CH);
+
+  const arr = Array.from(vals);
+  let mn, mx;
+  if (symmetric) {
+    const abs = Math.max(Math.abs(Math.min(...arr)), Math.abs(Math.max(...arr)), 0.1);
+    mn = -abs; mx = abs;
+  } else {
+    mn = Math.min(...arr, -0.005); mx = Math.max(...arr, 0.005);
+  }
+  const rng = mx - mn;
+  const toY = v => PAD + PH * (1 - (v - mn) / rng);
+
+  // Zero line
+  const zy = toY(0);
+  ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD, zy); ctx.lineTo(PAD+PW, zy); ctx.stroke();
+  ctx.strokeRect(PAD, PAD, PW, PH);
+
+  // Axis labels
+  ctx.fillStyle = '#ccc'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
+  ['0', '0.5', '1'].forEach((v, i) => ctx.fillText(v, PAD + i*PW/2, CH-2));
+
+  // Fill under curve
+  const yBase = Math.max(PAD, Math.min(PAD+PH, zy));
+  ctx.beginPath();
+  arr.forEach((v, i) => {
+    const px = PAD + i/(arr.length-1) * PW, py = toY(v);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  });
+  ctx.lineTo(PAD+PW, yBase); ctx.lineTo(PAD, yBase); ctx.closePath();
+  ctx.fillStyle = color + '28'; ctx.fill();
+
+  // Curve
+  ctx.beginPath();
+  arr.forEach((v, i) => {
+    const px = PAD + i/(arr.length-1) * PW, py = toY(v);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  });
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // Hint when empty
+  if (arr.every(v => v === 0)) {
+    ctx.fillStyle = '#ccc'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('← draw here →', PAD+PW/2, PAD+PH/2);
+  }
+}
+
+function render() {
+  plotCurve(document.getElementById('fCanvas'), fFull, '#e85d04', true);
+  plotCurve(document.getElementById('uCanvas'), computeU(), '#4361ee', false);
+}
+
+render();
+
+// ── Drawing ───────────────────────────────────────────────────────────────────
+const fC = document.getElementById('fCanvas');
+let drawing = false, lastI = null;
+
+function getIdx(e) {
+  const r = fC.getBoundingClientRect();
+  const cx = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) / r.width * CW;
+  const cy = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top)  / r.height * CH;
+  const idx = Math.round((cx - PAD) / PW * (N+1));
+  const val = (PH/2 - (cy - PAD)) / (PH/2) * 1.8;
+  return { idx: Math.max(0, Math.min(N+1, idx)), val: Math.max(-2, Math.min(2, val)) };
+}
+
+function applyStroke(pos) {
+  const {idx, val} = pos;
+  // Fill between lastI and idx to avoid gaps on fast strokes
+  const lo = lastI !== null ? Math.min(lastI, idx) : idx;
+  const hi = lastI !== null ? Math.max(lastI, idx) : idx;
+  for (let i = lo; i <= hi; i++) {
+    if (i === 0 || i === N+1) { fFull[i] = 0; continue; } // boundary = 0
+    fFull[i] = val;
+  }
+  lastI = idx;
+}
+
+fC.addEventListener('mousedown',  e => { drawing=true; lastI=null; applyStroke(getIdx(e)); render(); });
+fC.addEventListener('mousemove',  e => { if(drawing){ applyStroke(getIdx(e)); render(); } });
+document.addEventListener('mouseup', () => { drawing=false; lastI=null; });
+fC.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; lastI=null; applyStroke(getIdx(e)); render(); }, {passive:false});
+fC.addEventListener('touchmove',  e => { e.preventDefault(); if(drawing){ applyStroke(getIdx(e)); render(); } }, {passive:false});
+fC.addEventListener('touchend',   () => { drawing=false; lastI=null; });
+
+// ── Presets ───────────────────────────────────────────────────────────────────
+document.getElementById('clearBtn').onclick = () => { fFull.fill(0); render(); };
+
+document.getElementById('ex1Btn').onclick = () => {
+  xFull.forEach((xi, i) => {
+    fFull[i] = (i===0||i===N+1) ? 0 : Math.sin(2*Math.PI*xi)*1.5 + 0.4*Math.sin(5*Math.PI*xi);
+  });
+  render();
+};
+
+document.getElementById('ex2Btn').onclick = () => {
+  xFull.forEach((xi, i) => {
+    fFull[i] = (i===0||i===N+1) ? 0
+      : 1.5*Math.exp(-120*(xi-0.3)**2) - 1.2*Math.exp(-120*(xi-0.72)**2);
+  });
+  render();
+};
+</script>
+</body>
+</html>
